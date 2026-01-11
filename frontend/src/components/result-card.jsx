@@ -1,13 +1,4 @@
-import {
-  Bookmark,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  ExternalLink,
-  FileText,
-  Flame,
-  Share2,
-} from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, Flame } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -94,22 +85,6 @@ export function ResultCard({ result }) {
               Read More
             </>
           )}
-        </Button>
-        <Button variant="outline" size="sm">
-          <Copy className="w-3 h-3 mr-1" />
-          Copy
-        </Button>
-        <Button variant="outline" size="sm">
-          <Share2 className="w-3 h-3 mr-1" />
-          Share
-        </Button>
-        <Button variant="outline" size="sm">
-          <Bookmark className="w-3 h-3 mr-1" />
-          Save
-        </Button>
-        <Button variant="outline" size="sm">
-          <ExternalLink className="w-3 h-3 mr-1" />
-          Similar
         </Button>
       </div>
     </Card>

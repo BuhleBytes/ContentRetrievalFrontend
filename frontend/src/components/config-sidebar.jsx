@@ -7,7 +7,8 @@ import {
   Search,
   Settings,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiService } from "../services/api";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Checkbox } from "./ui/checkbox";
@@ -33,6 +34,33 @@ export function ConfigSidebar({
     today: ["Cold War & health problems...", "Gorilla conservation efforts..."],
     yesterday: ["Machine learning basics...", "TensorFlow optimization..."],
   });
+
+  const [stats, setStats] = useState({
+    total_documents: 251,
+    model: "all-mpnet-v2",
+    dimensions: 768,
+  });
+
+  const [statsLoading, setStatsLoading] = useState(true);
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await apiService.getStats();
+        setStats({
+          total_documents: data.total_documents,
+          model: data.model,
+          dimensions: data.dimensions,
+        });
+      } catch (error) {
+        console.error("Failed to load stats:", error);
+        // Keep default values on error
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   const categoryOptions = [
     { id: "all", label: "All Categories" },
@@ -249,15 +277,19 @@ export function ConfigSidebar({
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Database:</span>
-              <span className="font-medium">251 chunks</span>
+              <span className="font-medium">
+                {statsLoading
+                  ? "⏳ Loading..."
+                  : `${stats.total_documents} chunks`}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Model:</span>
-              <span className="font-medium">all-mpnet-base-v2</span>
+              <span className="font-medium">{stats.model}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Dimensions:</span>
-              <span className="font-medium">768</span>
+              <span className="font-medium">{stats.dimensions}</span>
             </div>
           </div>
         </Card>

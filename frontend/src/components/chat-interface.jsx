@@ -1,5 +1,6 @@
 import { Loader2, Send, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { apiService } from "../services/api";
 import { ChatMessage } from "./chat-message";
 import { ResultCard } from "./result-card";
 import { Button } from "./ui/button";
@@ -26,6 +27,7 @@ export function ChatInterface({
     e.preventDefault();
     if (!input.trim() || isSearching) return;
 
+    // User message
     const userMessage = {
       id: Date.now().toString(),
       type: "user",
@@ -34,61 +36,114 @@ export function ChatInterface({
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const queryText = input;
     setInput("");
     setIsSearching(true);
 
-    // Simulate bot response
-    setTimeout(() => {
+    try {
+      // Log what we're searching for (helpful for debugging)
+      console.log("🔍 Search Mode:", searchMode);
+      console.log("📝 Query:", queryText);
+      console.log("🎯 Num Results:", numResults);
+      console.log("🏷️ Categories:", categories);
+
+      let data;
+
+      // SEMANTIC SEARCH
+      if (searchMode === "semantic") {
+        console.log("→ Calling SEMANTIC search endpoint");
+
+        data = await apiService.semanticSearch({
+          query: queryText,
+          n_results: numResults,
+          filter_category: categories.includes("all") ? null : categories[0],
+        });
+      }
+      // HYBRID SEARCH
+      else {
+        console.log("→ Calling HYBRID search endpoint");
+        const keywordList = keywords.split(" ").filter((k) => k.trim());
+        console.log("🔑 Keywords:", keywordList);
+        console.log("⚖️ Weights:", semanticWeight, "/", 100 - semanticWeight);
+
+        data = await apiService.hybridSearch({
+          query: queryText,
+          keywords: keywordList,
+          n_results: numResults,
+          filter_category: categories.includes("all") ? null : categories[0],
+          semantic_weight: semanticWeight / 100,
+          keyword_weight: (100 - semanticWeight) / 100,
+        });
+      }
+
+      console.log("✅ Backend Response:", data);
+
+      // Bot response message
       const botMessage = {
         id: (Date.now() + 1).toString(),
         type: "bot",
-        content: `🔍 Searching with your current settings...\n\nCurrent Configuration:\n• Search Mode: ${
+        content: `🔍 Search completed!\n\n**Configuration:**\n• Mode: ${
           searchMode === "semantic" ? "Semantic Search" : "Hybrid Search"
-        }\n• Results: ${numResults} chunks\n• Filter: ${
-          categories.includes("all") ? "All Categories" : categories.join(", ")
+        }\n• Results: ${data.count} chunks found\n• Filter: ${
+          categories.includes("all") ? "All Categories" : categories[0]
         }${
-          searchMode === "hybrid" && keywords ? `\n• Keywords: ${keywords}` : ""
-        }\n\n✓ Found ${numResults} results in 0.3s`,
+          searchMode === "hybrid" && keywords.trim()
+            ? `\n• Keywords: ${keywords}\n• Weights: ${semanticWeight}% semantic, ${
+                100 - semanticWeight
+              }% keyword`
+            : ""
+        }${
+          data.cached
+            ? "\n• ⚡ **Cached result** (faster!)"
+            : "\n• 🆕 Fresh result"
+        }\n\n✓ Search completed successfully`,
         timestamp: new Date(),
-        config: {
-          searchMode,
-          numResults,
-          categories,
-          keywords,
-          semanticWeight,
-        },
       };
       setMessages((prev) => [...prev, botMessage]);
 
-      // Simulate results
-      setTimeout(() => {
-        const mockResults = Array.from({ length: numResults }, (_, i) => ({
-          id: i + 1,
-          similarity: (0.95 - i * 0.05).toFixed(3),
-          category: categories.includes("all")
-            ? [
-                "Research Publication",
-                "Educational",
-                "Technical Documentation",
-              ][i % 3]
-            : categories[0],
-          url: "pmc.ncbi.nlm.nih.gov/articles/...",
-          chunk: `${i + 45} of 67`,
-          preview:
-            "The alarming nuclear arms race that the five nuclear powers launched in the second half of the twentieth century was the result of the special status they enjoyed during the Cold War period. This unprecedented development led to significant environmental and health consequences...",
-        }));
+      // Format results for ResultCard component
+      const formattedResults = data.results.map((result, index) => {
+        // Hybrid search returns different field names
+        const similarity =
+          searchMode === "hybrid" ? result.hybrid_score : result.similarity;
 
-        const resultsMessage = {
-          id: (Date.now() + 2).toString(),
-          type: "results",
-          content: "",
-          timestamp: new Date(),
-          results: mockResults,
+        return {
+          id: index + 1,
+          similarity:
+            typeof similarity === "number" ? similarity.toFixed(3) : similarity,
+          category: result.metadata.category,
+          url: result.metadata.domain || result.metadata.url.substring(0, 30),
+          chunk: `${result.metadata.chunk_index}/${result.metadata.total_chunks}`,
+          preview: result.text.substring(0, 300) + "...",
+          fullContent: result.text,
         };
-        setMessages((prev) => [...prev, resultsMessage]);
-        setIsSearching(false);
-      }, 800);
-    }, 500);
+      });
+
+      console.log("📊 Formatted Results:", formattedResults);
+
+      // Results message
+      const resultsMessage = {
+        id: (Date.now() + 2).toString(),
+        type: "results",
+        content: "",
+        timestamp: new Date(),
+        results: formattedResults,
+      };
+      setMessages((prev) => [...prev, resultsMessage]);
+    } catch (error) {
+      console.error("❌ Search failed:", error);
+
+      // Error message
+      const errorMessage = {
+        id: (Date.now() + 1).toString(),
+        type: "system",
+        content: `❌ **Search failed**\n\n**Error:** ${error.message}\n\n**Troubleshooting:**\n• Check if backend is running: https://web-production-f2b40.up.railway.app/health\n• Check browser console (F12) for details\n• Try a different query\n• Check your network connection`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleKeyDown = (e) => {
