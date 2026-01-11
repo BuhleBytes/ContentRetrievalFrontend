@@ -1,4 +1,4 @@
-import { Bot, Search, Settings, Sparkles } from "lucide-react";
+import { Bot, Search, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 
@@ -30,8 +30,8 @@ export function WelcomeScreen({ onQuickStart, onConfigure }) {
         <Card className="p-8 space-y-6 bg-card/50 backdrop-blur-sm border-2">
           <div className="space-y-4">
             <p className="text-lg leading-relaxed">
-              Hi! I'm your AI search assistant. I can help you find information
-              from:
+              Hi! I'm your SMART search assistant. I can help you find
+              information from:
             </p>
             <ul className="space-y-2 text-muted-foreground">
               <li className="flex items-start gap-2">
@@ -64,16 +64,7 @@ export function WelcomeScreen({ onQuickStart, onConfigure }) {
               className="flex-1 min-w-[200px] bg-primary hover:bg-primary/90"
             >
               <Search className="w-4 h-4 mr-2" />
-              Quick Start
-            </Button>
-            <Button
-              onClick={onConfigure}
-              size="lg"
-              variant="outline"
-              className="flex-1 min-w-[200px]"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Configure Search
+              Start Searching
             </Button>
           </div>
         </Card>

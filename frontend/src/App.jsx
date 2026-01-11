@@ -1,5 +1,5 @@
-import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { Menu, X } from "lucide-react"; // ✅ Import Menu and X
+import { useEffect, useState } from "react";
 import { ChatInterface } from "./components/chat-interface";
 import { ConfigSidebar } from "./components/config-sidebar";
 import { Button } from "./components/ui/button";
@@ -14,13 +14,107 @@ function App() {
   const [keywords, setKeywords] = useState("");
   const [semanticWeight, setSemanticWeight] = useState(70);
 
+  // Chat management state
+  const [currentChatId, setCurrentChatId] = useState(null);
+  const [currentMessages, setCurrentMessages] = useState([]);
+  const [savedChats, setSavedChats] = useState([]);
+
+  // Load saved chats from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem("intelligent-search-chats");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setSavedChats(parsed);
+      } catch (e) {
+        console.error("Failed to load chats:", e);
+      }
+    }
+  }, []);
+
+  // Save chats to localStorage whenever they change
+  useEffect(() => {
+    if (savedChats.length > 0) {
+      localStorage.setItem(
+        "intelligent-search-chats",
+        JSON.stringify(savedChats)
+      );
+    }
+  }, [savedChats]);
+
   const handleQuickStart = () => {
     setShowWelcome(false);
+    handleNewChat();
   };
 
   const handleConfigure = () => {
     setShowWelcome(false);
     setSidebarOpen(true);
+    handleNewChat();
+  };
+
+  const handleNewChat = () => {
+    if (currentChatId && currentMessages.length > 0) {
+      const chatToSave = {
+        id: currentChatId,
+        name: currentChatId,
+        messages: currentMessages,
+        timestamp: new Date().toISOString(),
+      };
+
+      setSavedChats((prev) => {
+        const existing = prev.find((chat) => chat.id === currentChatId);
+        if (existing) {
+          return prev.map((chat) =>
+            chat.id === currentChatId ? chatToSave : chat
+          );
+        }
+        return [...prev, chatToSave];
+      });
+    }
+
+    const nextChatNumber = savedChats.length + 1;
+    const newChatId = `Chat ${nextChatNumber}`;
+
+    setCurrentChatId(newChatId);
+    setCurrentMessages([]);
+  };
+
+  const handleLoadChat = (chatId) => {
+    if (currentChatId && currentMessages.length > 0) {
+      const chatToSave = {
+        id: currentChatId,
+        name: currentChatId,
+        messages: currentMessages,
+        timestamp: new Date().toISOString(),
+      };
+
+      setSavedChats((prev) => {
+        const existing = prev.find((chat) => chat.id === currentChatId);
+        if (existing) {
+          return prev.map((chat) =>
+            chat.id === currentChatId ? chatToSave : chat
+          );
+        }
+        return [...prev, chatToSave];
+      });
+    }
+
+    const chatToLoad = savedChats.find((chat) => chat.id === chatId);
+    if (chatToLoad) {
+      setCurrentChatId(chatToLoad.id);
+      setCurrentMessages(chatToLoad.messages);
+    }
+  };
+
+  const handleClearHistory = () => {
+    setSavedChats([]);
+    localStorage.removeItem("intelligent-search-chats");
+
+    if (currentChatId && currentMessages.length > 0) {
+      setCurrentChatId(null);
+      setCurrentMessages([]);
+    }
   };
 
   if (showWelcome) {
@@ -34,24 +128,24 @@ function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      {/* TOGGLE BUTTON - OUTSIDE SIDEBAR (ALWAYS VISIBLE) */}
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className={`fixed top-4 z-50 bg-background shadow-lg transition-all duration-300 ${
+          sidebarOpen ? "left-[304px]" : "left-4"
+        }`}
+      >
+        {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </Button>
+
       {/* Sidebar */}
       <div
         className={`${
           sidebarOpen ? "w-80" : "w-0"
         } relative border-r border-border bg-sidebar transition-all duration-300 ease-in-out overflow-hidden flex-shrink-0`}
       >
-        {/* Close button INSIDE sidebar (only visible when open) */}
-        {sidebarOpen && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(false)}
-            className="absolute right-4 top-4 z-50 hover:bg-sidebar-accent"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        )}
-
         <div className="w-80 h-full">
           <ConfigSidebar
             searchMode={searchMode}
@@ -64,21 +158,14 @@ function App() {
             setKeywords={setKeywords}
             semanticWeight={semanticWeight}
             setSemanticWeight={setSemanticWeight}
+            onNewChat={handleNewChat}
+            savedChats={savedChats}
+            currentChatId={currentChatId}
+            onLoadChat={handleLoadChat}
+            onClearHistory={handleClearHistory}
           />
         </div>
       </div>
-
-      {/* Open button OUTSIDE sidebar (only visible when closed) */}
-      {!sidebarOpen && (
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setSidebarOpen(true)}
-          className="fixed left-4 top-4 z-50 bg-background shadow-lg"
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
-      )}
 
       {/* Main chat area */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -88,6 +175,9 @@ function App() {
           categories={categories}
           keywords={keywords}
           semanticWeight={semanticWeight}
+          messages={currentMessages}
+          setMessages={setCurrentMessages}
+          currentChatId={currentChatId}
         />
       </div>
     </div>

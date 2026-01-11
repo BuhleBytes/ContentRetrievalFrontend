@@ -2,6 +2,7 @@ import {
   BarChart3,
   Filter,
   Key,
+  MessageSquarePlus,
   RotateCcw,
   Scale,
   Search,
@@ -29,19 +30,20 @@ export function ConfigSidebar({
   setKeywords,
   semanticWeight,
   setSemanticWeight,
+  onNewChat, // NEW
+  savedChats, // NEW
+  currentChatId, // NEW
+  onLoadChat, // NEW
+  onClearHistory, // NEW
 }) {
-  const [conversationHistory, setConversationHistory] = useState({
-    today: ["Cold War & health problems...", "Gorilla conservation efforts..."],
-    yesterday: ["Machine learning basics...", "TensorFlow optimization..."],
-  });
-
+  // Stats loading
   const [stats, setStats] = useState({
     total_documents: 251,
-    model: "all-mpnet-v2",
+    model: "all-mpnet-base-v2",
     dimensions: 768,
   });
-
   const [statsLoading, setStatsLoading] = useState(true);
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -53,7 +55,6 @@ export function ConfigSidebar({
         });
       } catch (error) {
         console.error("Failed to load stats:", error);
-        // Keep default values on error
       } finally {
         setStatsLoading(false);
       }
@@ -89,18 +90,7 @@ export function ConfigSidebar({
     setSemanticWeight(70);
   };
 
-  const handleClearHistory = () => {
-    setConversationHistory({
-      today: [],
-      yesterday: [],
-    });
-  };
-
   const keywordWeight = 100 - semanticWeight;
-
-  const hasHistory =
-    conversationHistory.today.length > 0 ||
-    conversationHistory.yesterday.length > 0;
 
   return (
     <ScrollArea className="h-full">
@@ -112,6 +102,18 @@ export function ConfigSidebar({
             Search Configuration
           </h2>
         </div>
+
+        {/* NEW CHAT BUTTON */}
+        <Button
+          onClick={onNewChat}
+          className="w-full bg-primary hover:bg-primary/90"
+        >
+          <MessageSquarePlus className="w-4 h-4 mr-2" />
+          New Chat
+        </Button>
+
+        {/* ... rest of your existing sections (Search Mode, Number of Results, etc.) ... */}
+        {/* Keep all the existing code for Search Mode, Results, Categories, Keywords, Weights, Reset */}
 
         {/* Search Mode */}
         <div className="space-y-3">
@@ -263,12 +265,12 @@ export function ConfigSidebar({
         {/* Action Buttons */}
         <div className="pt-4 space-y-2">
           <Button onClick={handleReset} variant="outline" className="w-full">
-            <RotateCcw className="w-4 h-4 mr-2" />
+            <RotateCcw className="w-4 w-4 mr-2" />
             Reset to Default
           </Button>
         </div>
 
-        {/* Quick Stats */}
+        {/* Quick Stats - UPDATED */}
         <Card className="p-4 space-y-2 bg-sidebar-accent">
           <div className="flex items-center gap-2 pb-2 border-b border-sidebar-border">
             <BarChart3 className="w-4 h-4 text-sidebar-primary" />
@@ -294,55 +296,36 @@ export function ConfigSidebar({
           </div>
         </Card>
 
-        {/* Conversation History */}
+        {/* CONVERSATION HISTORY - UPDATED */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 pb-2 border-b border-sidebar-border">
             <h3 className="font-medium text-sm">Conversation History</h3>
           </div>
 
-          {!hasHistory ? (
+          {savedChats.length === 0 ? (
             <div className="text-center py-6">
               <p className="text-sm text-muted-foreground">
-                No conversation history yet
+                No saved conversations yet
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Start chatting to create history
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {conversationHistory.today.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">
-                    Today
-                  </p>
-                  <div className="space-y-1">
-                    {conversationHistory.today.map((chat, index) => (
-                      <button
-                        key={index}
-                        className="w-full text-left text-sm p-2 rounded hover:bg-sidebar-accent transition-colors truncate"
-                      >
-                        {chat}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {conversationHistory.yesterday.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">
-                    Yesterday
-                  </p>
-                  <div className="space-y-1">
-                    {conversationHistory.yesterday.map((chat, index) => (
-                      <button
-                        key={index}
-                        className="w-full text-left text-sm p-2 rounded hover:bg-sidebar-accent transition-colors truncate"
-                      >
-                        {chat}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="space-y-1">
+              {savedChats.map((chat) => (
+                <button
+                  key={chat.id}
+                  onClick={() => onLoadChat(chat.id)}
+                  className={`w-full text-left text-sm p-2 rounded hover:bg-sidebar-accent transition-colors truncate ${
+                    currentChatId === chat.id
+                      ? "bg-sidebar-accent font-medium"
+                      : ""
+                  }`}
+                >
+                  💬 {chat.name}
+                </button>
+              ))}
             </div>
           )}
 
@@ -350,8 +333,8 @@ export function ConfigSidebar({
             variant="ghost"
             size="sm"
             className="w-full text-xs"
-            onClick={handleClearHistory}
-            disabled={!hasHistory}
+            onClick={onClearHistory}
+            disabled={savedChats.length === 0}
           >
             Clear History
           </Button>

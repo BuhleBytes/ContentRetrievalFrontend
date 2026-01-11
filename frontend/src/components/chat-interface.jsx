@@ -12,8 +12,10 @@ export function ChatInterface({
   categories,
   keywords,
   semanticWeight,
+  messages,
+  setMessages,
+  currentChatId,
 }) {
-  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const messagesEndRef = useRef(null);
