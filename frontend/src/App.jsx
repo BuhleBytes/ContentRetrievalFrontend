@@ -1,4 +1,4 @@
-import { Menu, X } from "lucide-react"; // ✅ Import Menu and X
+import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ChatInterface } from "./components/chat-interface";
 import { ConfigSidebar } from "./components/config-sidebar";
@@ -18,6 +18,7 @@ function App() {
   const [currentChatId, setCurrentChatId] = useState(null);
   const [currentMessages, setCurrentMessages] = useState([]);
   const [savedChats, setSavedChats] = useState([]);
+  const [prefilledQuery, setPrefilledQuery] = useState(""); // ✅ NEW
 
   // Load saved chats from localStorage on mount
   useEffect(() => {
@@ -42,9 +43,15 @@ function App() {
     }
   }, [savedChats]);
 
-  const handleQuickStart = () => {
+  const handleQuickStart = (exampleQuery) => {
+    // ✅ UPDATED - Accept query parameter
     setShowWelcome(false);
     handleNewChat();
+
+    // If example query provided, pre-fill it
+    if (exampleQuery) {
+      setPrefilledQuery(exampleQuery);
+    }
   };
 
   const handleConfigure = () => {
@@ -178,6 +185,8 @@ function App() {
           messages={currentMessages}
           setMessages={setCurrentMessages}
           currentChatId={currentChatId}
+          prefilledQuery={prefilledQuery} // ✅ NEW PROP
+          setPrefilledQuery={setPrefilledQuery} // ✅ NEW PROP
         />
       </div>
     </div>

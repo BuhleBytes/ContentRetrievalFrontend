@@ -59,7 +59,7 @@ export function WelcomeScreen({ onQuickStart, onConfigure }) {
           {/* Action buttons */}
           <div className="flex flex-wrap gap-4 pt-4">
             <Button
-              onClick={onQuickStart}
+              onClick={() => onQuickStart("")}
               size="lg"
               className="flex-1 min-w-[200px] bg-primary hover:bg-primary/90"
             >
@@ -78,7 +78,7 @@ export function WelcomeScreen({ onQuickStart, onConfigure }) {
             {examples.map((example, index) => (
               <button
                 key={index}
-                onClick={onQuickStart}
+                onClick={() => onQuickStart(example)}
                 className="text-left p-4 rounded-lg border border-border hover:border-accent hover:bg-accent/5 transition-colors text-sm"
               >
                 {example}

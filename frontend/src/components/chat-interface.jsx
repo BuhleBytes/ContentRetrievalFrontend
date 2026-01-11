@@ -15,6 +15,8 @@ export function ChatInterface({
   messages,
   setMessages,
   currentChatId,
+  prefilledQuery,
+  setPrefilledQuery,
 }) {
   const [input, setInput] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -24,6 +26,26 @@ export function ChatInterface({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // ✅ FIXED: Handle prefilled query WITHOUT causing cascading renders
+  useEffect(() => {
+    if (prefilledQuery && prefilledQuery.trim()) {
+      // Use a microtask to avoid synchronous setState
+      Promise.resolve().then(() => {
+        setInput(prefilledQuery);
+
+        // Focus textarea after state update
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+          }
+        }, 50);
+
+        // Clear prefilled query AFTER setting input
+        setPrefilledQuery("");
+      });
+    }
+  }, [prefilledQuery]); // ✅ Removed setPrefilledQuery from deps
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,7 +65,6 @@ export function ChatInterface({
     setIsSearching(true);
 
     try {
-      // Log what we're searching for (helpful for debugging)
       console.log("🔍 Search Mode:", searchMode);
       console.log("📝 Query:", queryText);
       console.log("🎯 Num Results:", numResults);
@@ -105,7 +126,6 @@ export function ChatInterface({
 
       // Format results for ResultCard component
       const formattedResults = data.results.map((result, index) => {
-        // Hybrid search returns different field names
         const similarity =
           searchMode === "hybrid" ? result.hybrid_score : result.similarity;
 
@@ -171,19 +191,6 @@ export function ChatInterface({
                   Ask me anything about machine learning, wildlife conservation,
                   nuclear testing, or TensorFlow optimization!
                 </p>
-              </div>
-              <div className="flex flex-wrap gap-2 justify-center pt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setInput(
-                      "How did Cold War politics lead to environmental health problems?"
-                    )
-                  }
-                >
-                  Try example query
-                </Button>
               </div>
             </div>
           ) : (
