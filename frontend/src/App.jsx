@@ -18,7 +18,7 @@ function App() {
   const [currentChatId, setCurrentChatId] = useState(null);
   const [currentMessages, setCurrentMessages] = useState([]);
   const [savedChats, setSavedChats] = useState([]);
-  const [prefilledQuery, setPrefilledQuery] = useState(""); // ✅ NEW
+  const [prefilledQuery, setPrefilledQuery] = useState("");
 
   // Load saved chats from localStorage on mount
   useEffect(() => {
@@ -33,34 +33,54 @@ function App() {
     }
   }, []);
 
-  // Save chats to localStorage whenever they change
+  // ✅ FIX: Save to localStorage AND handle empty case
   useEffect(() => {
     if (savedChats.length > 0) {
       localStorage.setItem(
         "intelligent-search-chats",
         JSON.stringify(savedChats)
       );
+    } else {
+      // Clear localStorage if no chats
+      localStorage.removeItem("intelligent-search-chats");
     }
   }, [savedChats]);
 
   const handleQuickStart = (exampleQuery) => {
-    // ✅ UPDATED - Accept query parameter
     setShowWelcome(false);
-    handleNewChat();
 
-    // If example query provided, pre-fill it
+    // Don't call handleNewChat here - let it happen naturally
     if (exampleQuery) {
       setPrefilledQuery(exampleQuery);
+    }
+
+    // Only create new chat if no current chat exists
+    if (!currentChatId) {
+      const newChatId = `Chat 1`;
+      setCurrentChatId(newChatId);
+      setCurrentMessages([]);
     }
   };
 
   const handleConfigure = () => {
     setShowWelcome(false);
     setSidebarOpen(true);
-    handleNewChat();
+
+    // Only create new chat if no current chat exists
+    if (!currentChatId) {
+      const newChatId = `Chat 1`;
+      setCurrentChatId(newChatId);
+      setCurrentMessages([]);
+    }
   };
 
   const handleNewChat = () => {
+    console.log("🆕 Creating new chat...");
+    console.log("Current chat ID:", currentChatId);
+    console.log("Current messages:", currentMessages.length);
+    console.log("Saved chats before:", savedChats.length);
+
+    // ✅ FIX: Save current chat ONLY if it has messages
     if (currentChatId && currentMessages.length > 0) {
       const chatToSave = {
         id: currentChatId,
@@ -70,25 +90,62 @@ function App() {
       };
 
       setSavedChats((prev) => {
-        const existing = prev.find((chat) => chat.id === currentChatId);
-        if (existing) {
-          return prev.map((chat) =>
-            chat.id === currentChatId ? chatToSave : chat
-          );
+        // Check if this chat already exists
+        const existingIndex = prev.findIndex(
+          (chat) => chat.id === currentChatId
+        );
+
+        if (existingIndex !== -1) {
+          // Update existing chat
+          const updated = [...prev];
+          updated[existingIndex] = chatToSave;
+          console.log("✅ Updated existing chat:", currentChatId);
+          return updated;
+        } else {
+          // Add new chat
+          console.log("✅ Added new chat:", currentChatId);
+          return [...prev, chatToSave];
         }
-        return [...prev, chatToSave];
       });
+    } else {
+      console.log("⚠️ Current chat has no messages, not saving");
     }
 
-    const nextChatNumber = savedChats.length + 1;
-    const newChatId = `Chat ${nextChatNumber}`;
+    // ✅ FIX: Calculate next chat number AFTER saving
+    // Wait for state to update, then create new chat
+    setTimeout(() => {
+      setSavedChats((currentSaved) => {
+        // Find highest chat number
+        let maxChatNum = 0;
+        currentSaved.forEach((chat) => {
+          const match = chat.id.match(/Chat (\d+)/);
+          if (match) {
+            const num = parseInt(match[1]);
+            if (num > maxChatNum) maxChatNum = num;
+          }
+        });
 
-    setCurrentChatId(newChatId);
-    setCurrentMessages([]);
+        const nextChatNumber = maxChatNum + 1;
+        const newChatId = `Chat ${nextChatNumber}`;
+
+        console.log("🎯 Creating new chat:", newChatId);
+        setCurrentChatId(newChatId);
+        setCurrentMessages([]);
+
+        return currentSaved; // Don't modify saved chats here
+      });
+    }, 0);
   };
 
   const handleLoadChat = (chatId) => {
-    if (currentChatId && currentMessages.length > 0) {
+    console.log("📂 Loading chat:", chatId);
+
+    // Save current chat before switching (only if it has messages)
+    if (
+      currentChatId &&
+      currentMessages.length > 0 &&
+      currentChatId !== chatId
+    ) {
       const chatToSave = {
         id: currentChatId,
         name: currentChatId,
@@ -97,31 +154,47 @@ function App() {
       };
 
       setSavedChats((prev) => {
-        const existing = prev.find((chat) => chat.id === currentChatId);
-        if (existing) {
-          return prev.map((chat) =>
-            chat.id === currentChatId ? chatToSave : chat
-          );
+        const existingIndex = prev.findIndex(
+          (chat) => chat.id === currentChatId
+        );
+        if (existingIndex !== -1) {
+          const updated = [...prev];
+          updated[existingIndex] = chatToSave;
+          return updated;
         }
         return [...prev, chatToSave];
       });
     }
 
+    // Load selected chat
     const chatToLoad = savedChats.find((chat) => chat.id === chatId);
     if (chatToLoad) {
+      console.log(
+        "✅ Found chat, loading messages:",
+        chatToLoad.messages.length
+      );
+
+      // Convert timestamp strings back to Date objects
+      const messagesWithDates = chatToLoad.messages.map((msg) => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp),
+      }));
+
       setCurrentChatId(chatToLoad.id);
-      setCurrentMessages(chatToLoad.messages);
+      setCurrentMessages(messagesWithDates);
+    } else {
+      console.error("❌ Chat not found:", chatId);
     }
   };
 
   const handleClearHistory = () => {
+    console.log("🗑️ Clearing all history");
     setSavedChats([]);
     localStorage.removeItem("intelligent-search-chats");
 
-    if (currentChatId && currentMessages.length > 0) {
-      setCurrentChatId(null);
-      setCurrentMessages([]);
-    }
+    // Start completely fresh
+    setCurrentChatId("Chat 1");
+    setCurrentMessages([]);
   };
 
   if (showWelcome) {
@@ -135,7 +208,7 @@ function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* TOGGLE BUTTON - OUTSIDE SIDEBAR (ALWAYS VISIBLE) */}
+      {/* TOGGLE BUTTON */}
       <Button
         variant="outline"
         size="icon"
@@ -185,8 +258,8 @@ function App() {
           messages={currentMessages}
           setMessages={setCurrentMessages}
           currentChatId={currentChatId}
-          prefilledQuery={prefilledQuery} // ✅ NEW PROP
-          setPrefilledQuery={setPrefilledQuery} // ✅ NEW PROP
+          prefilledQuery={prefilledQuery}
+          setPrefilledQuery={setPrefilledQuery}
         />
       </div>
     </div>

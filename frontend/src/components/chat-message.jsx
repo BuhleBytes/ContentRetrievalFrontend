@@ -3,7 +3,15 @@ import { Card } from "./ui/card";
 
 export function ChatMessage({ message }) {
   const formatTime = (date) => {
-    return date.toLocaleTimeString("en-US", {
+    // ✅ FIX: Handle both Date objects and strings
+    const dateObj = date instanceof Date ? date : new Date(date);
+
+    // Check if valid date
+    if (isNaN(dateObj.getTime())) {
+      return "Invalid time";
+    }
+
+    return dateObj.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
     });

@@ -22,36 +22,41 @@ export function ChatInterface({
   const [isSearching, setIsSearching] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const hasProcessedQuery = useRef(false); // ✅ NEW: Track if query was processed
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ✅ FIXED: Handle prefilled query WITHOUT causing cascading renders
+  // ✅ FIXED: Handle prefilled query with ref to prevent cascading
   useEffect(() => {
-    if (prefilledQuery && prefilledQuery.trim()) {
-      // Use a microtask to avoid synchronous setState
-      Promise.resolve().then(() => {
-        setInput(prefilledQuery);
+    if (prefilledQuery && prefilledQuery.trim() && !hasProcessedQuery.current) {
+      hasProcessedQuery.current = true; // Mark as processed
 
-        // Focus textarea after state update
+      // Use requestAnimationFrame to defer setState
+      requestAnimationFrame(() => {
+        setInput(prefilledQuery);
+        setPrefilledQuery(""); // Clear it
+
+        // Focus textarea
         setTimeout(() => {
           if (textareaRef.current) {
             textareaRef.current.focus();
           }
-        }, 50);
-
-        // Clear prefilled query AFTER setting input
-        setPrefilledQuery("");
+        }, 100);
       });
     }
-  }, [prefilledQuery]); // ✅ Removed setPrefilledQuery from deps
+
+    // Reset flag when prefilledQuery changes from empty to something
+    if (!prefilledQuery) {
+      hasProcessedQuery.current = false;
+    }
+  }, [prefilledQuery, setPrefilledQuery]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim() || isSearching) return;
 
-    // User message
     const userMessage = {
       id: Date.now().toString(),
       type: "user",
@@ -72,18 +77,14 @@ export function ChatInterface({
 
       let data;
 
-      // SEMANTIC SEARCH
       if (searchMode === "semantic") {
         console.log("→ Calling SEMANTIC search endpoint");
-
         data = await apiService.semanticSearch({
           query: queryText,
           n_results: numResults,
           filter_category: categories.includes("all") ? null : categories[0],
         });
-      }
-      // HYBRID SEARCH
-      else {
+      } else {
         console.log("→ Calling HYBRID search endpoint");
         const keywordList = keywords.split(" ").filter((k) => k.trim());
         console.log("🔑 Keywords:", keywordList);
@@ -101,7 +102,6 @@ export function ChatInterface({
 
       console.log("✅ Backend Response:", data);
 
-      // Bot response message
       const botMessage = {
         id: (Date.now() + 1).toString(),
         type: "bot",
@@ -124,7 +124,6 @@ export function ChatInterface({
       };
       setMessages((prev) => [...prev, botMessage]);
 
-      // Format results for ResultCard component
       const formattedResults = data.results.map((result, index) => {
         const similarity =
           searchMode === "hybrid" ? result.hybrid_score : result.similarity;
@@ -143,7 +142,6 @@ export function ChatInterface({
 
       console.log("📊 Formatted Results:", formattedResults);
 
-      // Results message
       const resultsMessage = {
         id: (Date.now() + 2).toString(),
         type: "results",
@@ -155,7 +153,6 @@ export function ChatInterface({
     } catch (error) {
       console.error("❌ Search failed:", error);
 
-      // Error message
       const errorMessage = {
         id: (Date.now() + 1).toString(),
         type: "system",
@@ -177,7 +174,6 @@ export function ChatInterface({
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Chat messages */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-4xl mx-auto space-y-4">
           {messages.length === 0 ? (
@@ -220,7 +216,6 @@ export function ChatInterface({
         </div>
       </div>
 
-      {/* Input area */}
       <div className="border-t border-border bg-background p-4 flex-shrink-0">
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSubmit} className="space-y-3">
