@@ -22,23 +22,20 @@ export function ChatInterface({
   const [isSearching, setIsSearching] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
-  const hasProcessedQuery = useRef(false); // ✅ NEW: Track if query was processed
+  const hasProcessedQuery = useRef(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ✅ FIXED: Handle prefilled query with ref to prevent cascading
   useEffect(() => {
     if (prefilledQuery && prefilledQuery.trim() && !hasProcessedQuery.current) {
-      hasProcessedQuery.current = true; // Mark as processed
+      hasProcessedQuery.current = true;
 
-      // Use requestAnimationFrame to defer setState
       requestAnimationFrame(() => {
         setInput(prefilledQuery);
-        setPrefilledQuery(""); // Clear it
+        setPrefilledQuery("");
 
-        // Focus textarea
         setTimeout(() => {
           if (textareaRef.current) {
             textareaRef.current.focus();
@@ -47,7 +44,6 @@ export function ChatInterface({
       });
     }
 
-    // Reset flag when prefilledQuery changes from empty to something
     if (!prefilledQuery) {
       hasProcessedQuery.current = false;
     }
@@ -70,25 +66,25 @@ export function ChatInterface({
     setIsSearching(true);
 
     try {
-      console.log("🔍 Search Mode:", searchMode);
-      console.log("📝 Query:", queryText);
-      console.log("🎯 Num Results:", numResults);
-      console.log("🏷️ Categories:", categories);
+      console.log("Search Mode:", searchMode);
+      console.log("Query:", queryText);
+      console.log("Num Results:", numResults);
+      console.log("Categories:", categories);
 
       let data;
 
       if (searchMode === "semantic") {
-        console.log("→ Calling SEMANTIC search endpoint");
+        console.log("Calling SEMANTIC search endpoint");
         data = await apiService.semanticSearch({
           query: queryText,
           n_results: numResults,
           filter_category: categories.includes("all") ? null : categories[0],
         });
       } else {
-        console.log("→ Calling HYBRID search endpoint");
+        console.log("Calling HYBRID search endpoint");
         const keywordList = keywords.split(" ").filter((k) => k.trim());
-        console.log("🔑 Keywords:", keywordList);
-        console.log("⚖️ Weights:", semanticWeight, "/", 100 - semanticWeight);
+        console.log("Keywords:", keywordList);
+        console.log("Weights:", semanticWeight, "/", 100 - semanticWeight);
 
         data = await apiService.hybridSearch({
           query: queryText,
@@ -100,26 +96,24 @@ export function ChatInterface({
         });
       }
 
-      console.log("✅ Backend Response:", data);
+      console.log("Backend Response:", data);
 
       const botMessage = {
         id: (Date.now() + 1).toString(),
         type: "bot",
-        content: `🔍 Search completed!\n\n**Configuration:**\n• Mode: ${
+        content: `Search completed!\n\nConfiguration:\n- Mode: ${
           searchMode === "semantic" ? "Semantic Search" : "Hybrid Search"
-        }\n• Results: ${data.count} chunks found\n• Filter: ${
+        }\n- Results: ${data.count} chunks found\n- Filter: ${
           categories.includes("all") ? "All Categories" : categories[0]
         }${
           searchMode === "hybrid" && keywords.trim()
-            ? `\n• Keywords: ${keywords}\n• Weights: ${semanticWeight}% semantic, ${
+            ? `\n- Keywords: ${keywords}\n- Weights: ${semanticWeight}% semantic, ${
                 100 - semanticWeight
               }% keyword`
             : ""
         }${
-          data.cached
-            ? "\n• ⚡ **Cached result** (faster!)"
-            : "\n• 🆕 Fresh result"
-        }\n\n✓ Search completed successfully`,
+          data.cached ? "\n- Cached result (faster!)" : "\n- Fresh result"
+        }\n\nSearch completed successfully`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMessage]);
@@ -140,7 +134,7 @@ export function ChatInterface({
         };
       });
 
-      console.log("📊 Formatted Results:", formattedResults);
+      console.log("Formatted Results:", formattedResults);
 
       const resultsMessage = {
         id: (Date.now() + 2).toString(),
@@ -148,15 +142,17 @@ export function ChatInterface({
         content: "",
         timestamp: new Date(),
         results: formattedResults,
+        query: queryText,
+        rawResults: data.results,
       };
       setMessages((prev) => [...prev, resultsMessage]);
     } catch (error) {
-      console.error("❌ Search failed:", error);
+      console.error("Search failed:", error);
 
       const errorMessage = {
         id: (Date.now() + 1).toString(),
         type: "system",
-        content: `❌ **Search failed**\n\n**Error:** ${error.message}\n\n**Troubleshooting:**\n• Check if backend is running: https://web-production-f2b40.up.railway.app/health\n• Check browser console (F12) for details\n• Try a different query\n• Check your network connection`,
+        content: `Search failed\n\nError: ${error.message}\n\nTroubleshooting:\n- Check if backend is running\n- Check browser console for details\n- Try a different query\n- Check your network connection`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -196,7 +192,12 @@ export function ChatInterface({
                   {message.type === "results" ? (
                     <div className="space-y-3">
                       {message.results?.map((result) => (
-                        <ResultCard key={result.id} result={result} />
+                        <ResultCard
+                          key={result.id}
+                          result={result}
+                          query={message.query}
+                          allResults={message.rawResults}
+                        />
                       ))}
                     </div>
                   ) : (
@@ -243,7 +244,7 @@ export function ChatInterface({
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              💡 Try: "How does TensorFlow optimize graphs?" or use /help for
+              Try: "How does TensorFlow optimize graphs?" or use /help for
               commands
             </p>
           </form>
